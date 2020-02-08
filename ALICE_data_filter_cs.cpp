@@ -1,5 +1,5 @@
 //
-// Created by rwagn on 29.08.2019.
+// Created by rwagn on 30.01.2020.
 //
 
 #include "ALICE_input.h"
@@ -10,28 +10,30 @@
 
 using namespace std;
 
-void load_txt(const string &file, vector<myParticle> **Particles);
+void load_txt(const string &file, vector <myParticle> **Particles);
 
-void write_txt(const string &file, vector<int> &selected_events, vector<myParticle> **Particles, bool p_type,
+void write_txt(const string &file, vector<int> &selected_events, vector <myParticle> **Particles, bool p_type,
                int events_total);
 
-int event_selector(int N_Events, vector<myParticle> **Particles, vector<int> &selected_events, bool p_type);
+int event_selector(int N_Events, vector <myParticle> **Particles, vector<int> &selected_events, bool p_type);
+
 
 bool cascade_momentum(myParticle &neutron, myParticle &proton);
+
 
 int main() {
 
     Input input;
     input.full_data();
-    double cms = 0.9;
+    double cms = 2.76;
     input.set_cms(cms);
     int max_events;
 
     string data_dir = "/mnt/d/Uni/Lectures/thesis/ALICE_datasets_pythia/";
-    string target_np_dir = data_dir + "np_pairs/";
-    string target_npbar_dir = data_dir + "npbar_pairs/";
+    string target_np_dir = data_dir + "np_pairs_cs/";
+    string target_npbar_dir = data_dir + "npbar_pairs_cs/";
 
-    vector<myParticle> **Particles = nullptr; //Particle[Event][Type][i-th particle of this event and this typ]
+    vector <myParticle> **Particles = nullptr; //Particle[Event][Type][i-th particle of this event and this typ]
     //Type: 0 proton, 1 neutron, 2 anti proton, 3 anti neutron
 
     vector<int> selected_events;
@@ -39,7 +41,7 @@ int main() {
     for (int i = 0; i < input.N_simulations; ++i) {
 
         //construct new particles
-        Particles = new vector<myParticle> *[input.N_events[i]];
+        Particles = new vector <myParticle> *[input.N_events[i]];
         for (int x = 0; x < input.N_events[i]; ++x) {
             Particles[x] = new vector<myParticle>[4];
         }
@@ -66,7 +68,7 @@ int main() {
     return 0;
 }
 
-void load_txt(const string &file, vector<myParticle> **Particles) {
+void load_txt(const string &file, vector <myParticle> **Particles) {
 
     auto myParticle_constructor_ = new string[11];
     string line;
@@ -112,7 +114,7 @@ void load_txt(const string &file, vector<myParticle> **Particles) {
     delete[]myParticle_constructor_;
 }
 
-void write_txt(const string &file, vector<int> &selected_events, vector<myParticle> **Particles, bool p_type,
+void write_txt(const string &file, vector<int> &selected_events, vector <myParticle> **Particles, bool p_type,
                int events_total) {
 
     vector<int> p_types = {}; // if true use particles if false use anti particles
@@ -150,7 +152,7 @@ void write_txt(const string &file, vector<int> &selected_events, vector<myPartic
     }
 }
 
-int event_selector(int N_Events, vector<myParticle> **Particles, vector<int> &selected_events, bool p_type) {
+int event_selector(int N_Events, vector <myParticle> **Particles, vector<int> &selected_events, bool p_type) {
 
     int event = 0;
     vector<int> p_types = {}; // if true use particles if false use anti particles
@@ -168,21 +170,48 @@ int event_selector(int N_Events, vector<myParticle> **Particles, vector<int> &se
         //check if both are there for each event
         for (auto &proton:Particles[i][p_types[0]]) {
             for (auto &neutron:Particles[i][p_types[1]]) {
-                if (!cascade_momentum(neutron, proton)) { continue; }
+               // if (!cascade_momentum(neutron, proton)) { continue; }
                 myParticle deuteron = neutron + proton;
                 if (abs(deuteron.y()) <= 0.55) {
                     usefull_event = true;
-                    event++;
+                    continue;
                 }
             }
         }
-        if (usefull_event) { selected_events.push_back(i); }
+        for (auto &proton:Particles[i][p_types[0]]) {
+            for (auto &neutron:Particles[i][p_types[0]]) {
+                if(proton == neutron){ continue;}
+                //if (!cascade_momentum(neutron, proton)) { continue; }
+                myParticle deuteron = neutron + proton;
+                if (abs(deuteron.y()) <= 0.55) {
+                    usefull_event = true;
+                    continue;
+                }
+            }
+        }
+
+        for (auto &proton:Particles[i][p_types[1]]) {
+            for (auto &neutron:Particles[i][p_types[1]]) {
+                if(proton == neutron){ continue;}
+                //if (!cascade_momentum(neutron, proton)) { continue; }
+                myParticle deuteron = neutron + proton;
+                if (abs(deuteron.y()) <= 0.55) {
+                    usefull_event = true;
+                    continue;
+                }
+            }
+        }
+        if (usefull_event) {
+            selected_events.push_back(i);
+            event++;
+        }
         usefull_event = false;
     }
     return event;
 }
 
+
 bool cascade_momentum(myParticle &neutron, myParticle &proton) {
     double delta = proton.momentum_difference(neutron);
-    return delta <= 0.25;
+    return delta <= 0.5;
 }

@@ -8,6 +8,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <chrono>
+#include <random>
 
 using namespace std;
 
@@ -83,6 +85,7 @@ public:
     double chi_squared_raw(histogram &data_hist);
 
     histogram &operator=(const histogram &other); // copy assignment operator
+    histogram &operator+(const histogram &other); // combine histograms for more mc loops
 
 };
 

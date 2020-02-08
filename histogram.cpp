@@ -297,3 +297,12 @@ double histogram::chi_squared_raw(histogram &data_hist) {
 void histogram::reset_scaling() {
 
 }
+
+histogram &histogram::operator+(const histogram &other) {
+
+    for (int i = 0; i < N_bins(); ++i) {
+        this->data_[i] = this->data_[i]+other.data_[i];
+        this->error_[i] = this->error_[i]+other.error_[i];
+    }
+    return *this;
+}

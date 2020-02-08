@@ -71,8 +71,22 @@ public:
 
     void bstback(const myParticle& boost_particle);
 
+    void bst_E(double betaX, double betaY, double betaZ);
+
+    void bst(double betaX, double betaY, double betaZ);
+
+    void emit_single(double m, double r1, double r2);
+
+    void emit_double(double m1, double m2, double r1, double r2, double r3, double r4);
+
+    void rotate(double phi, double theta);
+
+    void move(double t);
+
     //overload + for deuteron = neutron + proton
     myParticle operator+(myParticle &proton);
+
+    bool operator ==(myParticle &other);
 
 };
 

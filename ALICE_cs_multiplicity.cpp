@@ -1,4 +1,7 @@
 //
+// Created by rwagn on 01.02.2020.
+//
+//
 // Created by rwagn on 03.12.2019.
 //
 
@@ -20,31 +23,35 @@ print_results_txt(double **chi_squared, double *cutoff_momentum, int N, string *
 
 int main() {
 
+
     const int N_classes = 5;
     vector<double> x_axis;
     vector<double> data;
     vector<double> error;
-    vector<double> counter(N_classes,0);
+    vector<double> counter(N_classes, 0);
     vector<histogram> alice(N_classes);
     vector<histogram> pythia(N_classes);
 
     double cms = 7;
     Input input;
-    input.reduce_data();
+    input.cs_data();
     input.set_particle("dbar", false);
     input.set_cms(cms);
+    input.max_simulations(26);
 
-    int N_values = 40;
+    int N_values = 45;
+    int mc_cycles = 10;
     auto **chi_squared = new double *[N_classes];
     for (int i = 0; i < N_classes; ++i) { chi_squared[i] = new double[N_values]; }
 
-    double cutoff_momentum[N_values];
+    double sigma_0_inv[N_values];
     for (int n = 0; n < N_values; ++n) {
-        cutoff_momentum[n] = (195. + n) / 1000.;
+        sigma_0_inv[n] = (2.9 + n / 10.) * 1e-6;
     }
     string class_string[N_classes] = {"_0_5_", "_5_10_", "_10_20_", "_20_40_", "_40_100_"};
-    double rescale_factors[N_classes] = {input.ff*16. / input.N_event_total/0.047, input.ff*8. / input.N_event_total/0.048, input.ff*4. / input.N_event_total/0.095,
-                                         input.ff*2. / input.N_event_total/0.19, input.ff*1. / input.N_event_total/0.62};
+    double rescale_factors[N_classes] = {input.ff*16. / (input.N_event_total * 0.047 * mc_cycles), input.ff*8./ ( input.N_event_total * 0.048* mc_cycles),
+                                         input.ff*4. / (input.N_event_total * 0.095* mc_cycles),
+                                         input.ff*2. / (input.N_event_total * 0.19* mc_cycles), input.ff*1. / (input.N_event_total * 0.62* mc_cycles)};
 
     double class_bin_limits[N_classes + 1] = {10000000., 14.88372093, 12.55813953, 9.53488372, 6.04651163, 0};
 
@@ -96,17 +103,20 @@ int main() {
     //loop over cutoff values
     for (int i = 0; i < N_values; ++i) {
         for (int m = 0; m < input.N_simulations; ++m) {
-            S[m].set_cutoff_momentum(cutoff_momentum[i]);
-            S[m].coalescence();
+            for (int k = 0; k < mc_cycles; ++k) {
 
-            //fill data in Histograms
-            for (auto &dbar:S[m].deuteron) {
-                if (abs(dbar.y()) <= 0.5) {
-                    for (int j = 0; j < N_classes; ++j) {
-                        if (dbar.Nch_eta() > class_bin_limits[j]) { continue; }
-                        if (dbar.Nch_eta() < class_bin_limits[j + 1]) { continue; }
-                        pythia[j].fill(dbar.pT(), dbar.wLT());
-                        counter[j]++;
+                S[m].set_sigma0(sigma_0_inv[i]);
+                S[m].cs_model_formation();
+
+                //fill data in Histograms
+                for (auto &dbar:S[m].deuteron) {
+                    if (abs(dbar.y()) <= 0.5) {
+                        for (int j = 0; j < N_classes; ++j) {
+                            if (dbar.Nch_eta() > class_bin_limits[j]) { continue; }
+                            if (dbar.Nch_eta() < class_bin_limits[j + 1]) { continue; }
+                            pythia[j].fill(dbar.pT(), dbar.wLT());
+                            counter[j]++;
+                        }
                     }
                 }
             }
@@ -115,12 +125,12 @@ int main() {
         //rescale
         for (auto &hist:pythia) { hist.rescale(); }
 
-        cout << cutoff_momentum[i] << " ";
+        cout << sigma_0_inv[i] << " ";
         //calculate chi squared and safe in array
         for (int k = 0; k < N_classes; ++k) {
             chi_squared[k][i] = pythia[k].chi_squared_raw(alice[k]);
-            cout << chi_squared[k][i] / (pythia[k].N_bins() - 1.) << " " ;//<< counter[k] << " ";
-            counter[k] =0;
+            cout << chi_squared[k][i] / (pythia[k].N_bins() - 1.) << " ";//<< counter[k] << " ";
+            counter[k] = 0;
         }
         //reset Histograms
         for (auto &hist:pythia) { hist.reset(); }
@@ -129,7 +139,7 @@ int main() {
     }
 
     //print chi squared values to plot in python
-    print_results_txt(chi_squared, cutoff_momentum, N_values, class_string, input.particle);
+    print_results_txt(chi_squared, sigma_0_inv, N_values, class_string, input.particle);
     return 0;
 
 }
@@ -174,7 +184,7 @@ print_results_txt(double **chi_squared, double *cutoff_momentum, int N, string *
     int N_class = 5;
     for (int i = 0; i < N_class; ++i) {
 
-        path = "/mnt/d/Uni/Lectures/thesis/ALICE_results/multiplicity/chi_squared/chi_squared_" + class_string[i] +
+        path = "/mnt/d/Uni/Lectures/thesis/ALICE_results/multiplicity/chi_squared_cs/chi_squared_" + class_string[i] +
                "_" +
                particle_type + ".txt";
 
