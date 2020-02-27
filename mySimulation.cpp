@@ -15,8 +15,7 @@ uniform_real_distribution<> random01(0, 1);
 
 mySimulation::mySimulation() {
     N_events_ = 0;
-    Particles = new vector<myParticle> *[N_events_];
-
+    //Particles = new vector<myParticle> *[N_events_];
     cutoff_momentum_2_ = 0.195 * 0.195;
     cutoff_position_2_ = pow(10, -20);
 
@@ -31,30 +30,16 @@ void mySimulation::load_txt(const string &file, int N_Events, bool reduced_data)
     string token;
 
     //destruct old arrays
-
-    for (int l = 0; l < N_events_; ++l) {
-        for (int i = 0; i < id_array_.size(); ++i) {
-            Particles[l][i].clear();
-        }
-    }
-
-    for (int k = 0; k < N_events_; ++k) {
-        delete[]Particles[k];
-    }
-    delete[]Particles;
-
+    Event.clear();
     //construct new particle array
     N_events_ = N_Events;
 
 
-    Particles = new vector<myParticle> *[N_events_];
-    for (int i = 0; i < N_events_; ++i) {
-        Particles[i] = new vector<myParticle>[id_array_.size()];
-    }
-
     //read file and construct particles
     ifstream myfile(file);
     bool firstline = true;
+    int event_ = 0;
+    event temp_event;
 
     if (!myfile.is_open()) {
         cout << "Error in: mySimulation -> load_txt" << "\n";
@@ -64,52 +49,46 @@ void mySimulation::load_txt(const string &file, int N_Events, bool reduced_data)
 
             if (firstline and reduced_data) {
                 firstline = false;
-                //delete arrays again and construct new ones with reduced event number
-                // there is a better way for sure but it works and there is a lot of other stuff to do
-                for (int l = 0; l < N_events_; ++l) {
-                    for (int i = 0; i < id_array_.size(); ++i) {
-                        Particles[l][i].clear();
-                    }
-                }
-
-                for (int k = 0; k < N_events_; ++k) {
-                    delete[]Particles[k];
-                }
-                delete[]Particles;
-
-                //construct new particle array
-                N_events_ = stoi(line);
-
-                Particles = new vector<myParticle> *[N_events_];
-                for (int i = 0; i < N_events_; ++i) {
-                    Particles[i] = new vector<myParticle>[id_array_.size()];
-                }
-
             } else {
-
                 int i = 0;//loop variable
-                int event;
                 stringstream ss(line);
                 while (getline(ss, token, ' ')) {
                     myParticle_constructor_[i] = token;
                     i++;
                 }
-                event = stoi(myParticle_constructor_[0]);
+                int new_event = stoi(myParticle_constructor_[0]);
+                if (new_event == event_) {
+                    event_ = new_event;
+                    //create new particle
+                    myParticle new_particle(myParticle_constructor_);
 
-                //create new particle
-                myParticle new_particle(myParticle_constructor_);
-
-                //add particle to Particles array
-                for (unsigned j = 0; j < id_array_.size(); ++j) {
-                    if (abs(new_particle.id()) == id_array_[j]) {
-                        Particles[event][j].push_back(new_particle);
+                    //add particle to Particles array
+                    if (abs(new_particle.id()) == p_id_) {
+                        temp_event.protons.push_back(new_particle);
+                    }
+                    if (abs(new_particle.id()) == n_id_) {
+                        temp_event.neutrons.push_back(new_particle);
+                    }
+                } if(new_event!=event_) {
+                    event_ = new_event;
+                    Event.push_back(temp_event);
+                    temp_event.protons.clear();
+                    temp_event.neutrons.clear();
+                    myParticle new_particle(myParticle_constructor_);
+                    //add particle to Particles array
+                    if (abs(new_particle.id()) == p_id_) {
+                        temp_event.protons.push_back(new_particle);
+                    }
+                    if (abs(new_particle.id()) == n_id_) {
+                        temp_event.neutrons.push_back(new_particle);
                     }
                 }
             }
+
         }
         myfile.close();
+        Event.push_back(temp_event);
     }
-
     delete[]myParticle_constructor_;
 }
 
@@ -117,8 +96,8 @@ void mySimulation::coalescence() {
     //delete old particles
     deuteron.clear();
     //form new ones
-    for (int k = 0; k < N_events_; ++k) {
-        form_deuterons(Particles[k][0], Particles[k][1]);
+    for (auto &element:Event) {
+        form_deuterons(element.protons, element.neutrons);
     }
 }
 
@@ -126,8 +105,8 @@ void mySimulation::cs_model_formation() {
     //delete old particles
     deuteron.clear();
     //form new ones
-    for (int k = 0; k < N_events_; ++k) {
-        form_deuterons_cs(Particles[k][0], Particles[k][1]);
+    for (auto &element:Event) {
+        form_deuterons_cs(element.protons, element.neutrons);
     }
 }
 
@@ -253,8 +232,8 @@ void mySimulation::rescale_spectrum() {
     if (!(weights_LT.rescaled and weights_A.rescaled)) {
         cout << "Rescaling weights not set" << "\n";
     } else {
-        for (int i = 0; i < N_events_; ++i) { //loop for all events
-            for (auto &pbar: Particles[i][0]) { //loop for all pbar in event
+        for (auto&element:Event) { //loop for all events
+            for (auto &pbar: element.protons) { //loop for all pbar in event
                 pT = pbar.pT();
                 //first recale with ALICE weights
                 for (int j = 0; j < weights_A.weights_.size(); ++j) { //loop for get the correct weight
@@ -269,7 +248,7 @@ void mySimulation::rescale_spectrum() {
                     pbar.set_wLT(weights_LT.weights_[j]);
                 }
             }
-            for (auto &nbar: Particles[i][1]) {//loop for all nbar in event
+            for (auto &nbar: element.neutrons) {//loop for all nbar in event
                 pT = nbar.pT();
                 //first recale with ALICE weights
                 for (int j = 0; j < weights_A.weights_.size(); ++j) { //loop for get the correct weight
@@ -302,27 +281,12 @@ void mySimulation::load_txt(const string &file, int N_Events, int particle_id) {
     string token;
 
     //destruct old arrays
-
-    for (int l = 0; l < N_events_; ++l) {
-        for (int i = 0; i < id_array_.size(); ++i) {
-            Particles[l][i].clear();
-        }
-    }
-
-    for (int k = 0; k < N_events_; ++k) {
-        delete[]Particles[k];
-    }
-    delete[]Particles;
-
+    Event.clear();
     //construct new particle array
     N_events_ = N_Events;
 
-
-    Particles = new vector<myParticle> *[N_events_];
-    for (int i = 0; i < N_events_; ++i) {
-        Particles[i] = new vector<myParticle>[1];
-    }
-
+    int event_ = -1;
+    event temp_event;
     //read file and construct particles
     ifstream myfile(file);
 
@@ -333,24 +297,35 @@ void mySimulation::load_txt(const string &file, int N_Events, int particle_id) {
         while (getline(myfile, line)) {
 
             int i = 0;//loop variable
-            int event;
             stringstream ss(line);
             while (getline(ss, token, ' ')) {
                 myParticle_constructor_[i] = token;
                 i++;
             }
-            event = stoi(myParticle_constructor_[0]);
+            int new_event = stoi(myParticle_constructor_[0]);
+            if (new_event == event_) {
+                event_ = new_event;
+                //create new particle
+                myParticle new_particle(myParticle_constructor_);
 
-            //create new particle
-            myParticle new_particle(myParticle_constructor_);
-
-            //add particle to Particles array
-
-            if (new_particle.id() == particle_id) {
-                Particles[event][0].push_back(new_particle);
+                //add particle to Particles array
+                if (new_particle.id() == particle_id) {
+                    temp_event.protons.push_back(new_particle);
+                }
+            } else {
+                event_ = new_event;
+                Event.push_back(temp_event);
+                temp_event.protons.clear();
+                temp_event.neutrons.clear();
+                myParticle new_particle(myParticle_constructor_);
+                if (new_particle.id() == particle_id) {
+                    temp_event.protons.push_back(new_particle);
+                }
             }
+
         }
         myfile.close();
+        Event.push_back(temp_event);
     }
 
     delete[]myParticle_constructor_;
@@ -362,9 +337,9 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
 
     double m1 = 0.1349770; //neutral pion mass
     double m2 = 0.13957061; // charged pion mass
-    double m1_inv = 7.4086696; // inverse neutral pion mass
     double m2_inv = 7.1648322; // inverse charged pion mass
     double md2 = 3.51792391; //deuteron mass squared
+    double md = 1.87561294257; //deuteron mass
     double betaX, betaY, betaZ;
     double E, k, dx, dy, dz;
     myParticle N1, N2; //temporary particles
@@ -400,7 +375,8 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
                 E = N1.p(0) + N2.p(0); // update energy in com frame
                 double E2 = E * E;
                 //calculate pion momentum
-                double m22 = m1 * m1;
+
+                double m22 = m2 * m2;
                 double q = sqrt(-0.5 * (md2 + m22) - 0.5 * md2 * m22 / E2 + 0.25 * (E2 + (md2 * md2 + m22 * m22) / E2));
 
 
@@ -409,17 +385,23 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
                 process.probability = prob_1(k);
                 temporary_deuteron.push_back(process);
 
-                process.type = 2;
-                process.probability = prob_2(q, m1_inv);
-                temporary_deuteron.push_back(process);
+                if (E > md + m1) {
+                    process.type = 2;
+                    process.probability = prob_2(q, m2_inv);
+                    temporary_deuteron.push_back(process);
 
-                process.type = 3;
-                process.probability = prob_3(k);
-                temporary_deuteron.push_back(process);
+                    if (E > md + m1 + m1) {
+                        process.type = 3;
+                        process.probability = prob_3(k);
+                        temporary_deuteron.push_back(process);
 
-                process.type = 4;
-                process.probability = prob_4(k);
-                temporary_deuteron.push_back(process);
+                        if (E > md + m2 + m2) {
+                            process.type = 4;
+                            process.probability = prob_4(k);
+                            temporary_deuteron.push_back(process);
+                        }
+                    }
+                }
             }
         }
     }
@@ -446,18 +428,23 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
 
                 E = N1.p(0) + N2.p(0); // update energy in com frame
                 double E2 = E * E;
+
                 //calculate pion momentum
                 double m22 = m2 * m2;
-
                 double q = sqrt(-0.5 * (md2 + m22) - 0.5 * md2 * m22 / E2 + 0.25 * (E2 + (md2 * md2 + m22 * m22) / E2));
 
                 //compute individual probabilities and save informations
-                process.type = 5;
-                process.probability = prob_5(q, m2_inv);
-                temporary_deuteron.push_back(process);
-                process.type = 6;
-                process.probability = prob_6(k);
-                temporary_deuteron.push_back(process);
+                if (E > md + m2) {
+                    process.type = 5;
+                    process.probability = prob_5(q, m2_inv);
+                    temporary_deuteron.push_back(process);
+
+                    if (E > md + m1 + m2) {
+                        process.type = 6;
+                        process.probability = prob_6(k);
+                        temporary_deuteron.push_back(process);
+                    }
+                }
             }
         }
     }
@@ -488,13 +475,16 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
                 double q = sqrt(-0.5 * (md2 + m22) - 0.5 * md2 * m22 / E2 + 0.25 * (E2 + (md2 * md2 + m22 * m22) / E2));
 
                 //compute individual probabilities and save informations
-                process.type = 7;
-                process.probability = prob_7(q, m2_inv);
-                temporary_deuteron.push_back(process);
-
-                process.type = 8;
-                process.probability = prob_8(k);
-                temporary_deuteron.push_back(process);
+                if (E > md + m2) {
+                    process.type = 7;
+                    process.probability = prob_7(q, m2_inv);
+                    temporary_deuteron.push_back(process);
+                    if (E > md + m1 + m2) {
+                        process.type = 8;
+                        process.probability = prob_8(k);
+                        temporary_deuteron.push_back(process);
+                    }
+                }
             }
         }
     }
@@ -513,7 +503,7 @@ mySimulation::form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> N
         probabilities = {0};
         for (auto &element:possible_deuterons) {
             prob = element.probability * sigma_0_inv_;
-            if (prob > 1.){prob=1.;}
+            if (prob > 1.) { prob = 1.; }
             norm += prob;
             probabilities.push_back(norm);
         }

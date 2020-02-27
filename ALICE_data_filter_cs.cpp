@@ -25,7 +25,7 @@ int main() {
 
     Input input;
     input.full_data();
-    double cms = 2.76;
+    double cms = 0.9;
     input.set_cms(cms);
     int max_events;
 

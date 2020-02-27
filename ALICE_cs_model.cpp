@@ -26,7 +26,7 @@ int main() {
     histogram H_nscaled;
     histogram H_data;
 
-    vector<double> cms_list = {0.9};
+    vector<double> cms_list = {2.76};
     Input input;
     input.cs_data();
     input.set_particle("dbar", false);
@@ -43,7 +43,6 @@ int main() {
 
     for (auto &cms:cms_list) {
         input.set_cms(cms);
-        //input.max_simulations(22);
         x_axis.clear();
         error.clear();
         data.clear();

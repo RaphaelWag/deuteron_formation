@@ -36,7 +36,7 @@ int main() {
 
     vector<int> selected_events;
 
-    for (int i = 0; i < input.N_simulations; ++i) {
+    for (int i = 15; i < input.N_simulations; ++i) {
 
         //construct new particles
         Particles = new vector<myParticle> *[input.N_events[i]];

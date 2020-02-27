@@ -162,15 +162,43 @@ public:
         if (cms_init == 2.76) {
 
             //settings for 2.76 TeV
-            N_simulations = 6;
+            N_simulations = 26;
             cms_string = "2.76";
             files = {"min_bias_cms_2760_events_6000000_seed_1.txt",
                      "min_bias_cms_2760_events_2400000_seed_2.txt",
                      "min_bias_cms_2760_events_4800000_seed_3.txt",
                      "min_bias_cms_2760_events_4800000_seed_4.txt",
+                     "min_bias_cms_2760_events_8400000_seed_5.txt",
+                     "min_bias_cms_2760_events_8400000_seed_6.txt",
+                     "min_bias_cms_2760_events_8400000_seed_7.txt",
+                     "min_bias_cms_2760_events_8400000_seed_8.txt",
+                     "min_bias_cms_2760_events_8400000_seed_9.txt",
+
+                     "min_bias_cms_2760_events_8400000_seed_100.txt",
+                     "min_bias_cms_2760_events_8400000_seed_101.txt",
+                     "min_bias_cms_2760_events_8400000_seed_102.txt",
+                     "min_bias_cms_2760_events_8400000_seed_103.txt",
+                     "min_bias_cms_2760_events_8400000_seed_104.txt",
+
                      "min_bias_cms_2760_events_8400000_seed_200.txt",
-                     "min_bias_cms_2760_events_8400000_seed_300.txt"};
+                     "min_bias_cms_2760_events_8400000_seed_201.txt",
+                     "min_bias_cms_2760_events_8400000_seed_202.txt",
+                     "min_bias_cms_2760_events_8400000_seed_203.txt",
+                     "min_bias_cms_2760_events_8400000_seed_204.txt",
+                     "min_bias_cms_2760_events_8400000_seed_205.txt",
+
+                     "min_bias_cms_2760_events_8400000_seed_300.txt",
+                     "min_bias_cms_2760_events_8400000_seed_301.txt",
+                     "min_bias_cms_2760_events_8400000_seed_302.txt",
+                     "min_bias_cms_2760_events_8400000_seed_303.txt",
+                     "min_bias_cms_2760_events_8400000_seed_304.txt",
+                     "min_bias_cms_2760_events_8400000_seed_305.txt",
+            };
             N_events = {6000000, 2400000, 4800000, 4800000, 8400000,
+                        8400000, 8400000, 8400000, 8400000, 8400000,
+                        8400000, 8400000, 8400000, 8400000, 8400000,
+                        8400000, 8400000, 8400000, 8400000, 8400000,
+                        8400000, 8400000, 8400000, 8400000, 8400000,
                         8400000};
             ff = 0.854;
             settings_correct = true;
@@ -179,17 +207,36 @@ public:
 
         if (cms_init == 0.9) {
             //settings for 0.9 TeV
-            N_simulations = 7;
+            N_simulations = 19;
             cms_string = "0.9";
             files = {"min_bias_cms_900_events_10800000_seed_1.txt",
                      "min_bias_cms_900_events_14400000_seed_2.txt",
+
                      "min_bias_cms_900_events_8400000_seed_300.txt",
+
+                     "min_bias_cms_900_events_8400000_seed_400.txt",
+                     "min_bias_cms_900_events_8400000_seed_401.txt",
+                     "min_bias_cms_900_events_8400000_seed_402.txt",
+                     "min_bias_cms_900_events_8400000_seed_403.txt",
+                     "min_bias_cms_900_events_8400000_seed_404.txt",
                      "min_bias_cms_900_events_8400000_seed_405.txt",
                      "min_bias_cms_900_events_8400000_seed_406.txt",
+                     "min_bias_cms_900_events_8400000_seed_407.txt",
+
                      "min_bias_cms_900_events_8400000_seed_500.txt",
-                     "min_bias_cms_900_events_8400000_seed_501.txt",};
+                     "min_bias_cms_900_events_8400000_seed_501.txt",
+                     "min_bias_cms_900_events_8400000_seed_502.txt",
+                     "min_bias_cms_900_events_8400000_seed_503.txt",
+                     "min_bias_cms_900_events_8400000_seed_504.txt",
+                     "min_bias_cms_900_events_8400000_seed_505.txt",
+                     "min_bias_cms_900_events_8400000_seed_506.txt",
+                     "min_bias_cms_900_events_8400000_seed_507.txt",
+
+            };
             N_events = {10800000, 14400000, 8400000, 8400000, 8400000,
-                        8400000, 8400000};
+                        8400000, 8400000, 8400000, 8400000, 8400000,
+                        8400000, 8400000, 8400000, 8400000, 8400000,
+                        8400000, 8400000, 8400000, 8400000};
             ff = 0.847;
             settings_correct = true;
         }

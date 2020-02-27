@@ -287,8 +287,10 @@ void myParticle::emit_double(double m1, double m2, double r1, double r2, double 
     double mpd2 = a * a - b1 + r2 * (b1 - b2);
     double s = p_[0] * p_[0];
     b = p_[0] * p_[0] + md2 - mpd2;
+
     double pd2 = 0.25 / s * b * b - md2;
     set_p(sqrt(md2 + pd2), sqrt(pd2), 0, 0);
+
     double phi = 2. * M_PI * r3;
     double theta = acos(1. - 2. * r4);
     rotate(phi, theta);

@@ -28,6 +28,11 @@ struct temp_d {
     double probability;
 };
 
+struct event {
+    vector<myParticle> neutrons;
+    vector<myParticle> protons;
+};
+
 class mySimulation {
 
 private:
@@ -73,11 +78,10 @@ private:
     double prob(double k, double a, double b, double c, double d, double e);
 
 public:
-    vector<myParticle> **Particles; //Particle[Event][Type][i-th particle of this event and this typ]
+    //vector<myParticle> **Particles; //Particle[Event][Type][i-th particle of this event and this typ]
     //Type: 0 proton, 1 neutron
+    vector<event> Event;
     vector<myParticle> deuteron;
-
-    //TODO: fix cs model, p_x_corr simulation
 
     mySimulation();
 
