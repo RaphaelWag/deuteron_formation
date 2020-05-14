@@ -16,7 +16,6 @@ private:
     int id_; //particle id
     vector<double> p_; //4 momentum
     vector<double> x_; //4 vertex
-    double wA_; //event weight for ALICE weighting
     double wLT_; //event weight for Levy Tsallis weighting
     double Nch_eta_; //number of charges particles per rapidity
     bool used_;
@@ -45,10 +44,8 @@ public:
 
     double pT();
 
-    double wA();
     double wLT();
 
-    void set_wA(double w_init);
     void set_wLT(double w_init);
 
     bool is_used();

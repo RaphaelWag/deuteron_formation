@@ -35,7 +35,6 @@ myParticle::myParticle(string *tokens) {
     x_[3] = stod(tokens[9]);
     Nch_eta_ = stod(tokens[10]);
 
-    wA_ = 1.;
     wLT_ = 1.;
     used_ = false;
 
@@ -69,24 +68,14 @@ myParticle myParticle::operator+(myParticle &proton) {
     double px = this->p_[1] + proton.p_[1];
     double py = this->p_[2] + proton.p_[2];
     double pz = this->p_[3] + proton.p_[3];
-    double wA = this->wA() * proton.wA();
     double wLT = this->wLT() * proton.wLT();
 
     Deuteron.set_p(E, px, py, pz);
-    Deuteron.set_wA(wA);
     Deuteron.set_wLT(wLT);
     Deuteron.set_parent_y(this->y(), proton.y());
     Deuteron.set_Nch_eta(proton.Nch_eta_);
 
     return Deuteron;
-}
-
-double myParticle::wA() {
-    return wA_;
-}
-
-void myParticle::set_wA(double w_init) {
-    wA_ = w_init;
 }
 
 double myParticle::wLT() {
@@ -104,7 +93,6 @@ void myParticle::init() {
 
     Nch_eta_ = 0;
     id_ = 0;
-    wA_ = 1.;
     wLT_ = 1.;
     used_ = false;
     y_n_ = 0;
@@ -316,7 +304,6 @@ bool myParticle::operator==(myParticle &other) {
     if(this->id_!=other.id_){ return false;}
     if(this->p_!=other.p_){ return false;}
     if(this->x_!=other.x_){ return false;}
-    if(this->wA_!=other.wA_){ return false;}
     if(this->wLT_!=other.wLT_){ return false;}
     if(this->Nch_eta_!=other.Nch_eta_){ return false;}
     if(this->used_!=other.used_){ return false;}

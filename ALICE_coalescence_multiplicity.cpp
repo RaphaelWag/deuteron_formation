@@ -16,41 +16,53 @@ void read_alice_data(const string &file, vector<double> &x_axis, vector<double> 
 
 void
 print_results_txt(double **chi_squared, double *cutoff_momentum, int N, string *class_string,
-                  const string &particle_type);
+                  const string &particle_type, const string &cms_string);
 
 int main() {
 
-    const int N_classes = 5;
+    const int N_classes = 9;
     vector<double> x_axis;
     vector<double> data;
     vector<double> error;
-    vector<double> counter(N_classes,0);
-    vector<histogram> alice(N_classes);
-    vector<histogram> pythia(N_classes);
 
-    double cms = 7;
+    double cms = 13;
     Input input;
     input.reduce_data();
     input.set_particle("dbar", false);
     input.set_cms(cms);
 
-    int N_values = 40;
+    int N_values = 150;
+    vector<histogram> alice(N_classes);
     auto **chi_squared = new double *[N_classes];
-    for (int i = 0; i < N_classes; ++i) { chi_squared[i] = new double[N_values]; }
+    auto **pythia = new histogram *[N_classes];
+    for (int i = 0; i < N_classes; ++i) {
+        chi_squared[i] = new double[N_values];
+        pythia[i] = new histogram[N_values];
+    }
+
 
     double cutoff_momentum[N_values];
     for (int n = 0; n < N_values; ++n) {
-        cutoff_momentum[n] = (195. + n) / 1000.;
+        cutoff_momentum[n] = (150. + n) / 1000.;
     }
-    string class_string[N_classes] = {"_0_5_", "_5_10_", "_10_20_", "_20_40_", "_40_100_"};
-    double rescale_factors[N_classes] = {input.ff*16. / input.N_event_total/0.047, input.ff*8. / input.N_event_total/0.048, input.ff*4. / input.N_event_total/0.095,
-                                         input.ff*2. / input.N_event_total/0.19, input.ff*1. / input.N_event_total/0.62};
+    //string class_string[N_classes] = {"i+ii", "iii", "iv+v", "vi+vii","iix+ix+x"};
+    //double cs_frac[N_classes] = {0.047, 0.048, 0.095, 0.19, 0.62};
+    double cs_frac[N_classes] = {0.0092, 0.0368, 0.046, 0.092, 0.092, 0.092, 0.092, 0.185, 0.355};
+    string class_string[N_classes] = {"i", "ii", "iii", "iv+v", "vi", "vii", "iix", "ix", "x"};
+    string class_string_weights[10] = {"i", "ii", "iii", "iv","v", "vi", "vii", "iix", "ix", "x"};
 
-    double class_bin_limits[N_classes + 1] = {10000000., 14.88372093, 12.55813953, 9.53488372, 6.04651163, 0};
+    double rescale_factors[N_classes];
 
-    string error_string = "3.txt";
-    string path = "/mnt/d/Uni/Lectures/thesis/ALICE_multiplicity_data/V0M_";
+    for (int i = 0; i < N_classes; ++i) {
+        rescale_factors[i] = input.ff * input.nsdtoinel / (input.N_event_total * cs_frac[i] * 0.75);
+    }
 
+    vector<double> class_bin_limits = {23255, 23.255814, 17.9069767, 14.8837209, 11.3953488, 8.8372093,
+                                              6.97674419, 5.34883721, 3.48837209, 0};
+    vector<double> class_bin_limits_weights = {23255, 23.255814, 17.9069767, 14.8837209, 13.0232558,11.3953488, 8.8372093,
+                                       6.97674419, 5.34883721, 3.48837209, 0};
+
+    string path = "/mnt/d/Uni/Lectures/thesis/ALICE_multiplicity_data/" + input.cms_string + "TeV/V0M_dbar_";
 
     x_axis.clear();
     error.clear();
@@ -58,7 +70,7 @@ int main() {
 
     for (int j = 0; j < N_classes; ++j) {
         //read in alice data
-        read_alice_data(path + input.particle + class_string[j] + error_string, x_axis, data, error);
+        read_alice_data(path + class_string[j] + ".txt", x_axis, data, error);
 
         //set alice data in histograms
         alice[j].set_xaxis(x_axis);
@@ -68,68 +80,59 @@ int main() {
 
 
         //set rescale factors for pythia data
-        pythia[j].rescale_data(rescale_factors[j]);
-        //set x axis for pythia
-        pythia[j].set_xaxis(x_axis);
-        pythia[j].normalize(); //differential in pT
-
+        for (int k = 0; k < N_values; ++k) {
+            pythia[j][k].rescale_data(rescale_factors[j]);
+            //set x axis for pythia
+            pythia[j][k].set_xaxis(x_axis);
+            pythia[j][k].normalize(); //differential in pT
+        }
         x_axis.clear();
         error.clear();
         data.clear();
     }
 
-    auto *S = new mySimulation[input.N_simulations];
+    mySimulation S;
 
-    for (int k = 0; k < input.N_simulations; ++k) {
-        S[k].set_ALICE_weights_discrete(input.cms_string, input.particle_type);
-        S[k].set_ALICE_weights_lt(input.cms_string, input.particle_type);
-    }
+    //S.set_ALICE_weights_lt(input.cms_string, input.particle_type);
+    S.set_ALICE_weights_multi(input.cms_string, input.particle_type, class_string_weights, 10);
 
     //analyze events
 
     //read in data from pythia and set weights for the events
     for (int l = 0; l < input.N_simulations; ++l) {
-        S[l].load_txt(input.dataset_folder + input.files[l], input.N_events[l], true);
-        S[l].rescale_spectrum();
-    }
+        S.load_txt(input.dataset_folder + input.files[l], input.N_events[l], true);
+        //S.rescale_spectrum();
+        S.rescale_spectrum_multi(class_bin_limits_weights);
 
-    //loop over cutoff values
-    for (int i = 0; i < N_values; ++i) {
-        for (int m = 0; m < input.N_simulations; ++m) {
-            S[m].set_cutoff_momentum(cutoff_momentum[i]);
-            S[m].coalescence();
-
+        //loop over cutoff values
+        for (int i = 0; i < N_values; ++i) {
+            S.set_cutoff_momentum(cutoff_momentum[i]);
+            S.coalescence();
             //fill data in Histograms
-            for (auto &dbar:S[m].deuteron) {
+            for (auto &dbar:S.deuteron) {
                 if (abs(dbar.y()) <= 0.5) {
                     for (int j = 0; j < N_classes; ++j) {
                         if (dbar.Nch_eta() > class_bin_limits[j]) { continue; }
                         if (dbar.Nch_eta() < class_bin_limits[j + 1]) { continue; }
-                        pythia[j].fill(dbar.pT(), dbar.wLT());
-                        counter[j]++;
+                        pythia[j][i].fill(dbar.pT(), dbar.wLT());
+                        break;
                     }
                 }
             }
         }
+    }
 
-        //rescale
-        for (auto &hist:pythia) { hist.rescale(); }
-
-        cout << cutoff_momentum[i] << " ";
-        //calculate chi squared and safe in array
-        for (int k = 0; k < N_classes; ++k) {
-            chi_squared[k][i] = pythia[k].chi_squared_raw(alice[k]);
-            cout << chi_squared[k][i] / (pythia[k].N_bins() - 1.) << " " ;//<< counter[k] << " ";
-            counter[k] =0;
+    //rescale
+    for (int m = 0; m < N_classes; ++m) {
+        for (int i = 0; i < N_values; ++i) {
+            pythia[m][i].rescale();
+            chi_squared[m][i] = pythia[m][i].chi_squared_raw_norm_err(alice[m], input.norm_err_above,
+                                                                      input.norm_err_below);
         }
-        //reset Histograms
-        for (auto &hist:pythia) { hist.reset(); }
-        cout << endl;
-
     }
 
     //print chi squared values to plot in python
-    print_results_txt(chi_squared, cutoff_momentum, N_values, class_string, input.particle);
+    print_results_txt(chi_squared, cutoff_momentum, N_values, class_string, input.particle, input.cms_string);
     return 0;
 
 }
@@ -168,15 +171,14 @@ void read_alice_data(const string &file, vector<double> &x_axis, vector<double> 
 
 void
 print_results_txt(double **chi_squared, double *cutoff_momentum, int N, string *class_string,
-                  const string &particle_type) {
+                  const string &particle_type, const string &cms_string) {
 
     string path;
-    int N_class = 5;
+    int N_class = 9;
     for (int i = 0; i < N_class; ++i) {
 
         path = "/mnt/d/Uni/Lectures/thesis/ALICE_results/multiplicity/chi_squared/chi_squared_" + class_string[i] +
-               "_" +
-               particle_type + ".txt";
+               "_" + cms_string + "_" + particle_type + ".txt";
 
         ofstream myfile(path);
         if (!myfile.is_open())

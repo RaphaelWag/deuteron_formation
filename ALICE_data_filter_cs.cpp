@@ -25,7 +25,7 @@ int main() {
 
     Input input;
     input.full_data();
-    double cms = 0.9;
+    double cms = 13;
     input.set_cms(cms);
     int max_events;
 
@@ -81,7 +81,7 @@ void load_txt(const string &file, vector <myParticle> **Particles) {
 
     //read file and construct particles
     ifstream myfile(file);
-
+    cout << file << "\n";
     if (!myfile.is_open()) {
         cout << "Error in: mySimulation -> load_txt" << "\n";
         cout << "Unable to open file" << "\n";

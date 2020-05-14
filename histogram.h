@@ -84,6 +84,12 @@ public:
 
     double chi_squared_raw(histogram &data_hist);
 
+    double chi_squared_raw_norm_err(histogram &data_hist, double err_above, double err_below);
+
+    void cout_data();
+
+    void cout_boundaries();
+
     histogram &operator=(const histogram &other); // copy assignment operator
     histogram &operator+(const histogram &other); // combine histograms for more mc loops
 

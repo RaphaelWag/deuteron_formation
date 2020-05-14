@@ -46,14 +46,19 @@ private:
     double cutoff_position_2_; //coalescence cutoff for position
     double sigma_0_inv_; //normalization for cross section model
 
-    weights weights_A;
     weights weights_LT;
 
-    bool cascade_momentum(myParticle &neutron, myParticle &proton);
+    vector<weights> multi_weights;
 
-    bool cascade_position(myParticle &neutron, myParticle &proton);
+    bool check_momentum(myParticle &neutron, myParticle &proton);
+
+    bool check_position(myParticle neutron, myParticle proton);
+
+    bool coming_closer(myParticle &proton, myParticle &neutron);
 
     void form_deuterons(vector<myParticle> Protons, vector<myParticle> Neutrons);
+
+    void form_deuterons_px(vector<myParticle> Protons, vector<myParticle> Neutrons);
 
     void form_deuterons_cs(vector<myParticle> Protons, vector<myParticle> Neutrons);
 
@@ -78,8 +83,7 @@ private:
     double prob(double k, double a, double b, double c, double d, double e);
 
 public:
-    //vector<myParticle> **Particles; //Particle[Event][Type][i-th particle of this event and this typ]
-    //Type: 0 proton, 1 neutron
+
     vector<event> Event;
     vector<myParticle> deuteron;
 
@@ -99,13 +103,17 @@ public:
 
     void coalescence();
 
-    void cs_model_formation();
+    void coalescence_px();
 
-    void set_ALICE_weights_discrete(const string &cms, bool particle_type);
+    void cs_model_formation();
 
     void set_ALICE_weights_lt(const string &cms, bool particle_type);
 
+    void set_ALICE_weights_multi(const string &cms, bool particle_type, string *class_name, int N_classes);
+
     void rescale_spectrum();
+
+    void rescale_spectrum_multi(vector<double> class_limits);
 };
 
 #endif //MY&SIMULATION_MYSIMULATION_H

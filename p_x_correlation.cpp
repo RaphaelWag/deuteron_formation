@@ -47,41 +47,41 @@ int main() {
 
     cout << input.cms_string << endl;
 
-    auto *S = new mySimulation[input.N_simulations];
-
-    for (int k = 0; k < input.N_simulations; ++k) {
-        S[k].set_ALICE_weights_discrete(input.cms_string, input.particle_type);
-        S[k].set_ALICE_weights_lt(input.cms_string, input.particle_type);
-    }
+    mySimulation S;
+    S.set_ALICE_weights_lt(input.cms_string, input.particle_type);
 
     //analyze events
 
     //read in data from pythia and set weights for the events
     for (int l = 0; l < input.N_simulations; ++l) {
-        S[l].load_txt(input.dataset_folder + input.files[l], input.N_events[l], true);
-        S[l].rescale_spectrum();
+        S.load_txt(input.dataset_folder + input.files[l], input.N_events[l], true);
+        S.rescale_spectrum();
 
         //loop over pairs in each event and get dx dp
-        for (auto& event:S[l].Event) {
+        for (auto& event:S.Event) {
             Data temp{};
             double dp;
             double dx;
             for (auto &proton:event.protons) {
-                //if(data.size()>100000){break;}
+                if(data.size()>100000){break;}
                 for (auto &neutron:event.neutrons) {
-                    //if(data.size()>100000){break;}
+                    if(data.size()>100000){break;}
                     //check which particle was created first
+
+                    //boost to CoM frame
+                    myParticle boostparticle = neutron + proton;
+                    neutron.bstback(boostparticle);
+                    proton.bstback(boostparticle);
+
                     double t = neutron.x(0) - proton.x(0);
                     if (t > 0) {
                         proton.move(t);
                     } else {
                         neutron.move(-t);
                     }
-                    //boost to CoM frame
-                    myParticle boostparticle = neutron + proton;
-                    neutron.bstback(boostparticle);
-                    proton.bstback(boostparticle);
+
                     // in CoM frame get closest distance
+
                     //check if they are coming closer or not
                     if (coming_closer(proton, neutron)) {
                         //get closest distance
@@ -109,8 +109,8 @@ int main() {
                         temp.dx = d;
                         temp.dp = dp;
                         temp.w = neutron.wLT() * proton.wLT();
-                        //data.push_back(temp);
-                        H.fill(temp.dx,temp.w);
+                        data.push_back(temp);
+                        //H.fill(temp.dx,temp.w);
 
                     } else {
                         //save dx and dp
@@ -140,8 +140,8 @@ int main() {
 
     }
     //write results to plot in python
-    //print_results_txt(data, input.cms_string);
-    H.print("/mnt/d/Uni/Lectures/thesis/ALICE_results/p_x_corr/dx_dist_"+input.cms_string+".txt");
+    print_results_txt(data, input.cms_string);
+    //H.print("/mnt/d/Uni/Lectures/thesis/ALICE_results/p_x_corr/dx_dist_"+input.cms_string+".txt");
     return 0;
 }
 

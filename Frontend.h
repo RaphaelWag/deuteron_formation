@@ -33,7 +33,9 @@ public:
 
     void load_pythia_data();
 
-    double chi_sqaured(double params[]);
+    double chi_squared(double *params);
+
+    double chi_squared_2(double *params);
 
 };
 

@@ -18,103 +18,109 @@ int main() {
     vector<double> x_axis;
     vector<double> data;
     vector<double> error;
-    histogram H_rescaled_LT;
-    histogram H_nscaled;
+    histogram H;
     histogram H_data;
 
-    vector<double> cms_list = {0.9};
+    double cms = 13;
     Input input;
     input.reduce_data();
     input.set_particle("dbar", false);
 
-    int N_values = 59;
+    int N_values = 50;
     double cutoff_momentum[N_values];
     double chi_squared[N_values];
     double chi_squared_wLT[N_values];
+    histogram H_w[N_values];
+    histogram H_nw[N_values];
     for (int n = 0; n < N_values; ++n) {
-        cutoff_momentum[n] = (197. + n) / 1000.;
+        cutoff_momentum[n] = (185. + n) / 1000.;
     }
 
-    for (auto &cms:cms_list) {
-        input.set_cms(cms);
-        x_axis.clear();
-        error.clear();
-        data.clear();
+    vector<double> class_bin_limits_weights = {23255, 23.255814, 17.9069767, 14.8837209, 13.0232558,11.3953488, 8.8372093,
+                                               6.97674419, 5.34883721, 3.48837209, 0};
+    string class_string_weights[10] = {"i", "ii", "iii", "iv","v", "vi", "vii", "iix", "ix", "x"};
 
-        cout << input.cms_string << endl;
+    input.set_cms(cms);
 
-        read_alice_data(input.ALICE_data, x_axis, data, error);
 
-        H_rescaled_LT.set_xaxis(x_axis);
-        H_rescaled_LT.rescale_data(input.ff / (2 * M_PI * input.N_event_total)); //Overall normalization
-        //need inverse x axis values for rescaling
-        for (auto &values:x_axis) {
-            values = 1. / values;
-        }
+    x_axis.clear();
+    error.clear();
+    data.clear();
 
-        H_rescaled_LT.rescale_data(x_axis); //bin individual rescale factors
-        H_rescaled_LT.normalize(); //Normalize per bin width
-        H_nscaled = H_data = H_rescaled_LT; //normalize and set x_axis equal to all histograms
+    cout << input.cms_string << endl;
 
-        //set data from ALICE
-        H_data.not_scale();
-        H_data.set_data(data);
-        H_data.set_error(error);
+    read_alice_data(input.ALICE_data, x_axis, data, error);
 
-        auto *S = new mySimulation[input.N_simulations];
+    H.set_xaxis(x_axis);
+    //H.rescale_data(input.ff*input.nsdtoinel / (2 * M_PI * input.N_event_total)); //Overall normalization
+    //13 TeV
+    H.rescale_data(input.ff*input.nsdtoinel / (input.N_event_total)); //Overall normalization
+    //need inverse x axis values for rescaling
+    for (auto &values:x_axis) {
+        values = 1. / values;
+    }
 
-        for (int k = 0; k < input.N_simulations; ++k) {
-            S[k].set_ALICE_weights_discrete(input.cms_string, input.particle_type);
-            S[k].set_ALICE_weights_lt(input.cms_string, input.particle_type);
-        }
+    //H.rescale_data(x_axis); //bin individual rescale factors
+    H.normalize(); //Normalize per bin width
+    H_data = H; //normalize and set x_axis equal to all histograms
 
-        //analyze events
+    for (auto &element:H_w) { element = H; }
+    for (auto &element:H_nw) { element = H; }
 
+    //set data from ALICE
+    H_data.not_scale();
+    H_data.set_data(data);
+    H_data.set_error(error);
+
+    mySimulation S;
+    S.set_ALICE_weights_lt(input.cms_string, input.particle_type);
+    //S.set_ALICE_weights_multi(input.cms_string, input.particle_type, class_string_weights, 10);
+
+    //analyze events
+
+    for (int j = 0; j < input.N_simulations; ++j) {
         //read in data from pythia and set weights for the events
-        for (int l = 0; l < input.N_simulations; ++l) {
-            S[l].load_txt(input.dataset_folder + input.files[l], input.N_events[l], true);
-            S[l].rescale_spectrum();
-        }
+        S.load_txt(input.dataset_folder + input.files[j], input.N_events[j], true);
+        S.rescale_spectrum();
+        //S.rescale_spectrum_multi(class_bin_limits_weights);
 
         //loop over cutoff values
         for (int i = 0; i < N_values; ++i) {
-            for (int m = 0; m < input.N_simulations; ++m) {
-                S[m].set_cutoff_momentum(cutoff_momentum[i]);
-                S[m].coalescence();
+            S.set_cutoff_momentum(cutoff_momentum[i]);
+            S.coalescence();
 
-                //fill data in Histograms
-                for (auto &dbar:S[m].deuteron) {
-                    if (abs(dbar.y()) <= 0.5) {
-                        H_rescaled_LT.fill(dbar.pT(), dbar.wLT());
-                        H_nscaled.fill(dbar.pT());
+            //fill data in Histograms
+            for (auto &dbar:S.deuteron) {
+                if (abs(dbar.y()) <= 0.5) {
+                    H_w[i].fill(dbar.pT(), dbar.wLT());
+                    H_nw[i].fill(dbar.pT());
 
-                    }
                 }
             }
-            //rescale
-            H_rescaled_LT.rescale();
-            H_nscaled.rescale();
-
-
-            //calculate chi squared and safe in array
-            chi_squared[i] = H_nscaled.chi_squared_raw(H_data);
-            chi_squared_wLT[i] = H_rescaled_LT.chi_squared_raw(H_data);
-
-            //reset Histograms
-            H_nscaled.reset();
-            H_rescaled_LT.reset();
-
-            cout << cutoff_momentum[i] << " " << chi_squared[i] / (H_data.N_bins() - 1.) << " "
-                 << chi_squared_wLT[i] / (H_data.N_bins() - 1.) << endl;
-            //end loop
         }
-
-        //print chi squared values to plot in python
-        print_results_txt(chi_squared, cutoff_momentum, N_values, input.cms_string, "nw"); //nw = no weights
-        print_results_txt(chi_squared_wLT, cutoff_momentum, N_values, input.cms_string, "cw"); //dw = discrete weights
-
-        delete[] S;
     }
+    //rescale
+    for (auto &element:H_w) { element.rescale(); }
+    for (auto &element:H_nw) { element.rescale(); }
+
+
+    //calculate chi squared and safe in array
+    for (int i = 0; i < N_values; ++i) {
+        chi_squared[i] = H_nw[i].chi_squared_raw_norm_err(H_data,input.norm_err_above, input.norm_err_below);
+        chi_squared_wLT[i] = H_w[i].chi_squared_raw_norm_err(H_data,input.norm_err_above, input.norm_err_below);
+
+        cout << cutoff_momentum[i] << " " << chi_squared[i] / (H_data.N_bins() - 1.) << " "
+             << chi_squared_wLT[i] / (H_data.N_bins() - 1.) << endl;
+    }
+
+
+
+
+//print chi squared values to plot in python
+    print_results_txt(chi_squared, cutoff_momentum, N_values, input.cms_string, "nw"); //nw = no weights
+    print_results_txt(chi_squared_wLT, cutoff_momentum, N_values, input.cms_string, "cw"); //dw = discrete weights
+
+
     return 0;
 }
 

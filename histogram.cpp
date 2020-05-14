@@ -244,7 +244,7 @@ void histogram::populate(const histogram &other) {
     rescale_array_ = other.rescale_array_;
     rescale_probability_ = other.rescale_probability_;
     N_bins_ = other.N_bins_;
-    size_ = other.N_bins_ * sizeof(double);
+    is_scaled_ = other.is_scaled_;
 
 }
 
@@ -294,6 +294,36 @@ double histogram::chi_squared_raw(histogram &data_hist) {
     return chi_squared;
 }
 
+double histogram::chi_squared_raw_norm_err(histogram &data_hist, double err_above, double err_below) {
+    double chi_squared = 0;
+    double error = 0;
+    double value;
+    double norm_err = 0;//norm error for data
+    double norm_err_2 = 0;//norm error for MC
+
+    if (data_hist.N_bins() == N_bins_) {
+        for (int i = 0; i < data_hist.N_bins_; ++i) {
+            //check if data is above or below simulation
+            value = data_hist.data_[i] - data_[i];
+            if (value > 0) {//below
+                norm_err = err_below * data_hist.data_[i];
+                norm_err_2 = err_above * data_[i];
+            } else {
+                norm_err = err_above * data_hist.data_[i];
+                norm_err_2 = err_below * data_[i];
+            }
+            error = data_hist.error_[i] * data_hist.error_[i] + norm_err * norm_err + norm_err_2 * norm_err_2;
+            value = value * value;
+            chi_squared += value / error;
+        }
+
+    } else {
+        cout << "Histograms do not have the same amount of bins" << endl;
+    }
+    return chi_squared;
+}
+
+
 void histogram::reset_scaling() {
 
 }
@@ -301,8 +331,21 @@ void histogram::reset_scaling() {
 histogram &histogram::operator+(const histogram &other) {
 
     for (int i = 0; i < N_bins(); ++i) {
-        this->data_[i] = this->data_[i]+other.data_[i];
-        this->error_[i] = this->error_[i]+other.error_[i];
+        this->data_[i] = this->data_[i] + other.data_[i];
+        this->error_[i] = this->error_[i] + other.error_[i];
     }
     return *this;
 }
+
+void histogram::cout_data() {
+    for (int i = 0; i < N_bins_; ++i) {
+        cout << data_[i] << endl;
+    }
+}
+
+void histogram::cout_boundaries() {
+    for (int i = 0; i < N_bins_ + 1; ++i) {
+        cout << boundaries_[i] << endl;
+    }
+}
+

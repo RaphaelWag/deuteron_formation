@@ -93,7 +93,6 @@ void Frontend::load_pythia_data() {
 
     //load weights
     for (int k = 0; k < input.N_simulations; ++k) {
-        S[k].set_ALICE_weights_discrete(input.cms_string, input.particle_type);
         S[k].set_ALICE_weights_lt(input.cms_string, input.particle_type);
     }
     //read in data from pythia and set weights for the events
@@ -103,7 +102,7 @@ void Frontend::load_pythia_data() {
     }
 }
 
-double Frontend::chi_sqaured(double *params) {
+double Frontend::chi_squared(double *params) {
 
     double chi_squared;
     for (int m = 0; m < input.N_simulations; ++m) {
@@ -119,6 +118,26 @@ double Frontend::chi_sqaured(double *params) {
     }
     H_sim.rescale();
     chi_squared = H_sim.chi_squared_raw(H_data)/(H_data.N_bins()-1);
+    H_sim.reset();
+    return chi_squared;
+}
+
+double Frontend::chi_squared_2(double *params) {
+    double chi_squared;
+    for (int m = 0; m < input.N_simulations; ++m) {
+        S[m].set_cutoff_momentum(params[0]);
+        S[m].set_cutoff_position(params[1]);
+        S[m].coalescence_px();
+
+        //fill data in Histograms
+        for (auto &dbar:S[m].deuteron) {
+            if (abs(dbar.y()) <= 0.5) {
+                H_sim.fill(dbar.pT(), dbar.wLT());
+            }
+        }
+    }
+    H_sim.rescale();
+    chi_squared = H_sim.chi_squared_raw(H_data)/(H_data.N_bins()-2.);
     H_sim.reset();
     return chi_squared;
 }

@@ -69,7 +69,8 @@ void mySimulation::load_txt(const string &file, int N_Events, bool reduced_data)
                     if (abs(new_particle.id()) == n_id_) {
                         temp_event.neutrons.push_back(new_particle);
                     }
-                } if(new_event!=event_) {
+                }
+                if (new_event != event_) {
                     event_ = new_event;
                     Event.push_back(temp_event);
                     temp_event.protons.clear();
@@ -101,6 +102,16 @@ void mySimulation::coalescence() {
     }
 }
 
+void mySimulation::coalescence_px() {
+    //delete old particles
+    deuteron.clear();
+    //form new ones
+    for (auto &element:Event) {
+        form_deuterons_px(element.protons, element.neutrons);
+    }
+}
+
+
 void mySimulation::cs_model_formation() {
     //delete old particles
     deuteron.clear();
@@ -110,20 +121,55 @@ void mySimulation::cs_model_formation() {
     }
 }
 
-bool mySimulation::cascade_momentum(myParticle &neutron, myParticle &proton) {
+bool mySimulation::check_momentum(myParticle &neutron, myParticle &proton) {
     double delta = proton.momentum_difference(neutron);
     return delta <= cutoff_momentum_2_;
 }
 
-bool mySimulation::cascade_position(myParticle &neutron, myParticle &proton) {
+bool mySimulation::check_position(myParticle neutron, myParticle proton) {
 
-    double delta = proton.spacetime_difference(neutron);
+    //boost to CoM frame
+    myParticle boostparticle = neutron + proton;
+    neutron.bstback(boostparticle);
+    proton.bstback(boostparticle);
 
-    //return delta <= cutoff_position_2_;
+    double d2;
+    double t = neutron.x(0) - proton.x(0);
+    if (t > 0) {
+        proton.move(t);
+    } else {
+        neutron.move(-t);
+    }
 
-    return delta < 0;
+    // in CoM frame get closest distance
+    //check if they are coming closer or not
+    if (coming_closer(proton, neutron)) {
+        //get closest distance
+        // cross product of direction vectors (= momentum vectors)
+        double nx = proton.p(2) * neutron.p(3) - proton.p(3) * neutron.p(2);
+        double ny = proton.p(3) * neutron.p(1) - proton.p(1) * neutron.p(3);
+        double nz = proton.p(1) * neutron.p(2) - proton.p(2) * neutron.p(1);
 
-    //return true;
+        // r1 - r2 = r
+        double rx = proton.x(1) - neutron.x(1);
+        double ry = proton.x(2) - neutron.x(2);
+        double rz = proton.x(3) - neutron.x(3);
+
+        // d =n*r/n
+        double a = abs(nx * rx + ny * ry + nz * rz);
+        d2 = a * a / (nx * nx + ny * ny + nz * nz);
+
+    } else {
+        // r1 - r2 = r
+        double rx = proton.x(1) - neutron.x(1);
+        double ry = proton.x(2) - neutron.x(2);
+        double rz = proton.x(3) - neutron.x(3);
+
+        d2 = rx * rx + ry * ry + rz * rz;
+    }
+
+    return d2 <= cutoff_position_2_;
+
 }
 
 void
@@ -133,8 +179,7 @@ mySimulation::form_deuterons(vector<myParticle> Protons, vector<myParticle> Neut
         for (auto &neutron:Neutrons) {
             if (proton.is_used()) { continue; }
             if (neutron.is_used()) { continue; }
-            if (!cascade_momentum(neutron, proton)) { continue; }
-            // if (!cascade_position(neutron, proton)) { continue; }
+            if (!check_momentum(neutron, proton)) { continue; }
 
             d = neutron + proton;
             d.emit_single(0, random01(gen), random01(gen));
@@ -145,17 +190,22 @@ mySimulation::form_deuterons(vector<myParticle> Protons, vector<myParticle> Neut
     }
 }
 
-void mySimulation::set_ALICE_weights_discrete(const string &cms, bool particle_type) {
+void mySimulation::form_deuterons_px(vector<myParticle> Protons, vector<myParticle> Neutrons) {
+    myParticle d;
+    for (auto &proton:Protons) {
+        for (auto &neutron:Neutrons) {
+            if (proton.is_used()) { continue; }
+            if (neutron.is_used()) { continue; }
+            if (!check_momentum(neutron, proton)) { continue; }
+            if (!check_position(neutron, proton)) { continue; }
 
-    string file;
-    if (particle_type) {
-        file = "/mnt/d/Uni/Lectures/thesis/ALICE_weighting/discrete_weights/weights_p_" + cms + ".txt";
-    } else {
-        file = "/mnt/d/Uni/Lectures/thesis/ALICE_weighting/discrete_weights/weights_pbar_" + cms + ".txt";
+            d = neutron + proton;
+            d.emit_single(0, random01(gen), random01(gen));
+            deuteron.push_back(d);
+            proton.used();
+            neutron.used();
+        }
     }
-
-    load_weights(file, weights_A);
-
 }
 
 void mySimulation::set_ALICE_weights_lt(const string &cms, bool particle_type) {
@@ -229,18 +279,12 @@ void mySimulation::rescale_spectrum() {
 
     double pT = 0;
 
-    if (!(weights_LT.rescaled and weights_A.rescaled)) {
+    if (!(weights_LT.rescaled)) {
         cout << "Rescaling weights not set" << "\n";
     } else {
-        for (auto&element:Event) { //loop for all events
+        for (auto &element:Event) { //loop for all events
             for (auto &pbar: element.protons) { //loop for all pbar in event
                 pT = pbar.pT();
-                //first recale with ALICE weights
-                for (int j = 0; j < weights_A.weights_.size(); ++j) { //loop for get the correct weight
-                    if (pT < weights_A.weight_boundaries_[j]) { continue; }
-                    if (pT > weights_A.weight_boundaries_[j + 1]) { continue; }
-                    pbar.set_wA(weights_A.weights_[j]);
-                }
                 //then rescale with LT weights
                 for (int j = 0; j < weights_LT.weights_.size(); ++j) { //loop for get the correct weight
                     if (pT < weights_LT.weight_boundaries_[j]) { continue; }
@@ -250,12 +294,6 @@ void mySimulation::rescale_spectrum() {
             }
             for (auto &nbar: element.neutrons) {//loop for all nbar in event
                 pT = nbar.pT();
-                //first recale with ALICE weights
-                for (int j = 0; j < weights_A.weights_.size(); ++j) { //loop for get the correct weight
-                    if (pT < weights_A.weight_boundaries_[j]) { continue; }
-                    if (pT > weights_A.weight_boundaries_[j + 1]) { continue; }
-                    nbar.set_wA(weights_A.weights_[j]);
-                }
                 //then rescale with LT weights
                 for (int j = 0; j < weights_LT.weights_.size(); ++j) { //loop for get the correct weight
                     if (pT < weights_LT.weight_boundaries_[j]) { continue; }
@@ -289,7 +327,7 @@ void mySimulation::load_txt(const string &file, int N_Events, int particle_id) {
     event temp_event;
     //read file and construct particles
     ifstream myfile(file);
-
+    cout << file << "\n";
     if (!myfile.is_open()) {
         cout << "Error in: mySimulation -> load_txt" << "\n";
         cout << "Unable to open file" << "\n";
@@ -665,3 +703,82 @@ void mySimulation::set_sigma0(double sigma0) {
 int mySimulation::N_events() {
     return N_events_;
 }
+
+bool mySimulation::coming_closer(myParticle &proton, myParticle &neutron) {
+    double x, y, z;
+    x = neutron.x(1) - proton.x(1);
+    y = neutron.x(2) - proton.x(2);
+    z = neutron.x(3) - proton.x(3);
+
+    double sp = x * proton.p(1) + y * proton.p(2) + z * proton.p(3);
+
+    return sp > 0;
+}
+
+void mySimulation::set_ALICE_weights_multi(const string &cms, bool particle_type, string *class_name, int N_classes) {
+
+    multi_weights.clear();
+
+    string file;
+    for (int i = 0; i < N_classes; ++i) {
+        weights new_weight;
+        if (particle_type) {
+            file = "/mnt/d/Uni/Lectures/thesis/ALICE_weighting/levy_tsallis_weights/weights_p_" + cms + "_" +
+                   class_name[i] + ".txt";
+        } else {
+            file = "/mnt/d/Uni/Lectures/thesis/ALICE_weighting/levy_tsallis_weights/weights_pbar_" + cms + "_" +
+                   class_name[i] + ".txt";
+        }
+
+        load_weights(file, new_weight);
+        multi_weights.push_back(new_weight);
+    }
+
+}
+
+void mySimulation::rescale_spectrum_multi(vector<double> class_limits) {
+    double pT = 0;
+
+    for (auto &element:Event) { //loop for all events
+        for (auto &pbar: element.protons) { //loop for all pbar in event
+            pT = pbar.pT();
+
+            //then rescale with weights
+            for (int i = 0; i < class_limits.size() - 1; ++i) {
+                //check for correct dNch_deta
+                if (pbar.Nch_eta() > class_limits[i]) { continue; }
+                if (pbar.Nch_eta() < class_limits[i + 1]) { continue; }
+
+                weights weight = multi_weights[i];
+                if (!weight.rescaled) { cout << "weights not set" << endl; }
+                for (int j = 0; j < weight.weights_.size(); ++j) { //loop for get the correct weight
+                    //check for correct pT
+                    if (pT < weight.weight_boundaries_[j]) { continue; }
+                    if (pT > weight.weight_boundaries_[j + 1]) { continue; }
+                    pbar.set_wLT(weight.weights_[j]);
+                }
+            }
+        }
+        for (auto &nbar: element.neutrons) {//loop for all nbar in event
+            pT = nbar.pT();
+            //then rescale with weights
+            for (int i = 0; i < class_limits.size() - 1; ++i) {
+                //check for correct dNch_deta
+                if (nbar.Nch_eta() > class_limits[i]) { continue; }
+                if (nbar.Nch_eta() < class_limits[i + 1]) { continue; }
+
+                weights weight = multi_weights[i];
+                for (int j = 0; j < weight.weights_.size(); ++j) { //loop for get the correct weight
+                    //check for correct pT
+                    if (pT < weight.weight_boundaries_[j]) { continue; }
+                    if (pT > weight.weight_boundaries_[j + 1]) { continue; }
+                    nbar.set_wLT(weight.weights_[j]);
+                }
+            }
+        }
+    }
+}
+
+
+
+

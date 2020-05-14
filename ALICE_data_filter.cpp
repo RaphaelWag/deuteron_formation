@@ -23,7 +23,7 @@ int main() {
 
     Input input;
     input.full_data();
-    double cms = 0.9;
+    double cms = 13;
     input.set_cms(cms);
     int max_events;
 
@@ -36,7 +36,7 @@ int main() {
 
     vector<int> selected_events;
 
-    for (int i = 15; i < input.N_simulations; ++i) {
+    for (int i = 250; i < input.N_simulations; ++i) {
 
         //construct new particles
         Particles = new vector<myParticle> *[input.N_events[i]];
@@ -54,7 +54,7 @@ int main() {
         for (int l = 0; l < input.N_events[i]; ++l) {
             for (int k = 0; k < 4; ++k) {
                 Particles[l][k].clear();
-            }
+           }
         }
 
         for (int m = 0; m < input.N_events[i]; ++m) {
@@ -79,7 +79,7 @@ void load_txt(const string &file, vector<myParticle> **Particles) {
 
     //read file and construct particles
     ifstream myfile(file);
-
+    cout << file << "\n";
     if (!myfile.is_open()) {
         cout << "Error in: mySimulation -> load_txt" << "\n";
         cout << "Unable to open file" << "\n";
@@ -184,5 +184,5 @@ int event_selector(int N_Events, vector<myParticle> **Particles, vector<int> &se
 
 bool cascade_momentum(myParticle &neutron, myParticle &proton) {
     double delta = proton.momentum_difference(neutron);
-    return delta <= 0.25;
+    return delta <= 0.3;
 }

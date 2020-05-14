@@ -13,6 +13,8 @@ using namespace std;
 
 double levy_tsallis(double pT, vector<double> params);
 
+double levy_tsallis_new(double pT, vector<double> params);
+
 int main() {
 
     vector<double> x_axis = {0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13,
@@ -22,9 +24,10 @@ int main() {
                              0.675, 0.725, 0.775, 0.825, 0.875, 0.925, 0.975, 1.025,
                              1.075, 1.125, 1.175, 1.225, 1.275, 1.35, 1.45, 1.55,
                              1.65, 1.75, 1.85, 1.95, 2.05, 2.15, 2.25, 2.35, 2.45,
-                             2.55, 2.65, 2.75, 2.85, 2.95};
-    double cms = 0.9;
-    vector<double> params = {0.09917695, 8.44442985, 0.19216617, 0.9382720813}; // N,n,C,m0
+                             2.55, 2.65, 2.75, 2.85, 2.95, 3.05, 3.15, 3.25, 3.35,
+                             3.45, 3.55, 3.65, 3.75, 3.85, 3.95};
+    double cms = 13;
+    vector<double> params = {0.3691/2., 7.23, 0.2442, 0.9382720813}; // N,n,C,m0
 
     // anti protons
     // 7TeV
@@ -37,49 +40,55 @@ int main() {
     // [0.09917695, 8.44442985, 0.19216617]
     // [0.09917695, 8.44442985, 0.19216617]
 
+    //13 TeV different norm
+    // [0.3691/2., 7.23, 0.2442]
+    // [0.3691/2., 7.23, 0.2442]
+
+
+    // new 0.9 TeV data with different normalization
+    // [0.07854844 8.17249344 0.18937513]
+    // [0.07854844 8.17249344 0.18937513]
+
     Input input;
     input.full_data();
     input.set_cms(cms);
+
     int particle_id = -2212;
     string particle_string = "pbar";
-
-    double N_events_total = 0;
-
-    for (int j = 0; j < input.N_simulations; ++j) {
-        N_events_total += input.N_events[j];
-    }
 
     histogram H_pbar;
 
     H_pbar.set_xaxis(x_axis);
-    H_pbar.rescale_data(1. / (2 * M_PI * N_events_total)); //Overall normalization
+    //H_pbar.rescale_data(input.ff / (2 * M_PI * input.N_event_total)); //Overall normalization to NSD
+    H_pbar.rescale_data(input.ff*input.nsdtoinel / (input.N_event_total*0.75)); //Overall normalization 13TeV data
+
     //need inverse x axis values for rescaling
     for (auto &values:x_axis) {
         values = 1. / values;
     }
 
-    H_pbar.rescale_data(x_axis); //bin individual rescale factors
+    //H_pbar.rescale_data(x_axis); //bin individual rescale factors, not used in 13TeV data
+
     H_pbar.normalize(); //Normalize per bin width
 
-    auto *S = new mySimulation[input.N_simulations];
+    mySimulation S;
 
     //analyze events
 
     //read in data from pythia
     for (int l = 0; l < input.N_simulations; ++l) {
-        S[l].load_txt(input.dataset_folder + input.files[l], input.N_events[l], particle_id);
-    }
+        S.load_txt(input.dataset_folder + input.files[l], input.N_events[l], particle_id);
 
-    //fill Histogram
-    for (int i = 0; i < input.N_simulations; ++i) {
-        for (int k = 0; k < input.N_events[i]; ++k) {
-            for (auto &pbar:S[i].Particles[k][0]) {
+        //fill Histogram
+        for (auto &event:S.Event) {
+            for (auto &pbar:event.protons) {
                 if (abs(pbar.y()) <= 0.5) {
                     H_pbar.fill(pbar.pT());
                 }
             }
         }
     }
+
 
     //print histogram
     H_pbar.rescale();
@@ -99,7 +108,7 @@ int main() {
     } else {
         myfile << x_axis.size() << endl;
         for (int i = 0; i < H_pbar.N_bins(); ++i) {
-            myfile << H_pbar.x_axis_[i] << " " << levy_tsallis(H_pbar.x_axis_[i], params) / H_pbar.data_[i] << endl;
+            myfile << H_pbar.x_axis_[i] << " " << levy_tsallis_new(H_pbar.x_axis_[i], params) / H_pbar.data_[i] << endl;
         }
         myfile.close();
     }
@@ -117,6 +126,20 @@ double levy_tsallis(double pT, vector<double> params) {
 
     double term1 = (n - 1.) * (n - 2.);
     double term2 = 2. * M_PI * nC * (nC + m0 * (n - 2.));
+    double term3 = 1. + (mT - m0) / nC;
+    return N * term1 / term2 * pow(term3, -n);
+}
+
+double levy_tsallis_new(double pT, vector<double> params) {
+    double N = params[0];
+    double n = params[1];
+    double C = params[2];
+    double m0 = params[3];
+    double mT = sqrt(pT * pT + m0 * m0);
+    double nC = n * C;
+
+    double term1 = pT * (n - 1.) * (n - 2.);
+    double term2 = nC * (nC + m0 * (n - 2.));
     double term3 = 1. + (mT - m0) / nC;
     return N * term1 / term2 * pow(term3, -n);
 }
